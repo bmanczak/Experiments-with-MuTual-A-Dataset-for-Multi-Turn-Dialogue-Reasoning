@@ -1,6 +1,6 @@
-**RACE
+RACE/*
 data/*
-bert**
+bert*/
 output/*
 *__pycache__
 *.vscode

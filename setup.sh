@@ -25,5 +25,25 @@ git lfs clone https://huggingface.co/bert-base-uncased
 
 # Create directory for output logs
 mkdir output
+conda create -n "ocn" -y Python==3.7
+source activate ocn
 
 echo 'Its done mate cheers'
+
+:'
+python run.py \
+  --do_train \
+  --do_eval \
+  --do_lower_case \
+  --race_dir RACE \
+  --model_dir bert-base-uncased \
+  --max_doc_len 400 \
+  --max_query_len 30 \
+  --max_option_len 16 \
+  --train_batch_size 24 \
+  --eval_batch_size 24 \
+  --learning_rate 1.5e-5 \
+  --num_train_epochs 5 \
+  --gradient_accumulation_steps 2 \
+  --output_dir output
+'

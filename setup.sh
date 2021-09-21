@@ -27,6 +27,7 @@ git lfs clone https://huggingface.co/bert-base-uncased
 mkdir output
 conda create -n "ocn" -y Python==3.7
 source activate ocn
+pip install -q -r requirements.txt
 
 echo 'Its done mate cheers'
 

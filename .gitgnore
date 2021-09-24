@@ -6,3 +6,4 @@ output/*
 *.vscode
 *.txt
 *slurm
+*.ipynb_checkpoints

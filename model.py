@@ -143,39 +143,39 @@ class OCN(BertPreTrainedModel):
         opt_mask = opt_mask.view(bsz, self.num_labels, opt_total_len)
         opt_enc = opt_enc.view(bsz, self.num_labels, opt_total_len, self.hidden_size)
 
-        # # Option Comparison
-        # correlation_list = []
-        # for i in range(self.num_labels):
-        #     cur_opt = opt_enc[:, i, :, :]
-        #     cur_mask = opt_mask[:, i, :]
+#         # Option Comparison
+#         correlation_list = []
+#         for i in range(self.num_labels):
+#             cur_opt = opt_enc[:, i, :, :]
+#             cur_mask = opt_mask[:, i, :]
 
-        #     comp_info = []
-        #     for j in range(self.num_labels):
-        #         if j == i:
-        #             continue
+#             comp_info = []
+#             for j in range(self.num_labels):
+#                 if j == i:
+#                     continue
 
-        #         tmp_opt = opt_enc[:, j, :, :]
-        #         tmp_mask = opt_mask[:, j, :]
+#                 tmp_opt = opt_enc[:, j, :, :]
+#                 tmp_mask = opt_mask[:, j, :]
 
-        #         (attn, _), _ = self.opt_attention(cur_opt, tmp_opt, tmp_opt, cur_mask, tmp_mask)
-        #         comp_info.append(cur_opt * attn)
-        #         comp_info.append(cur_opt - attn)
+#                 (attn, _), _ = self.opt_attention(cur_opt, tmp_opt, tmp_opt, cur_mask, tmp_mask)
+#                 comp_info.append(cur_opt * attn)
+#                 comp_info.append(cur_opt - attn)
 
-        #     correlation = torch.tanh(self.comp_fc(torch.cat([cur_opt] + comp_info, dim=-1)))
-        #     correlation_list.append(correlation)
+#             correlation = torch.tanh(self.comp_fc(torch.cat([cur_opt] + comp_info, dim=-1)))
+#             correlation_list.append(correlation)
 
-        # correlation_list = [correlation.unsqueeze(1) for correlation in correlation_list]
-        # opt_correlation = torch.cat(correlation_list, dim=1)
+#         correlation_list = [correlation.unsqueeze(1) for correlation in correlation_list]
+#         opt_correlation = torch.cat(correlation_list, dim=1)
 
-        # opt_mask = opt_mask.view(bsz * self.num_labels, opt_total_len)
-        # opt_enc = opt_enc.view(bsz * self.num_labels, opt_total_len, self.hidden_size)
-        # opt_correlation = opt_correlation.contiguous().view(bsz * self.num_labels, opt_total_len, self.hidden_size)
-        # gate = torch.sigmoid(self.gate_fc(torch.cat((opt_enc, opt_correlation, query_attn.expand_as(opt_enc)), -1)))
-        # option = opt_enc * gate + opt_correlation * (1.0 - gate)
+        opt_mask = opt_mask.view(bsz * self.num_labels, opt_total_len)
+        opt_enc = opt_enc.view(bsz * self.num_labels, opt_total_len, self.hidden_size)
+#         opt_correlation = opt_correlation.contiguous().view(bsz * self.num_labels, opt_total_len, self.hidden_size)
+#         gate = torch.sigmoid(self.gate_fc(torch.cat((opt_enc, opt_correlation, query_attn.expand_as(opt_enc)), -1)))
+#         option = opt_enc * gate + opt_correlation * (1.0 - gate)
 
-        #(attn, _), (coattn, _) = self.attention(option, doc_enc, doc_enc, opt_mask, doc_mask) # eq 13,14 original
+        # (attn, _), (coattn, _) = self.attention(option, doc_enc, doc_enc, opt_mask, doc_mask) # eq 13,14 original
         (attn, _), (coattn, _) = self.attention(opt_enc, doc_enc, doc_enc, opt_mask, doc_mask) # eq 13,14 experiment
-        #fusion = self.attn_fc(torch.cat((option, attn, coattn), -1)) # eq 15 original
+        # fusion = self.attn_fc(torch.cat((option, attn, coattn), -1)) # eq 15 original
         fusion = self.attn_fc(torch.cat((opt_enc, attn, coattn), -1)) # eq 15 experiment
         fusion = F.relu(fusion) # eq 16
 

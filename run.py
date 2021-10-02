@@ -22,6 +22,7 @@ from pytorch_pretrained_bert.tokenization import BertTokenizer
 from pytorch_pretrained_bert.optimization import BertAdam
 
 from model import OCN
+from mutual import dataset_selector, mutual_data_loader
 
 
 logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s', 
@@ -38,6 +39,13 @@ class InputExample(object):
         self.question_text = question_text
         self.options = options
         self.answer = answer
+        
+    def __str__(self):
+        string = ""
+        for attribute in [self.guid, self.doc_token, self.question_text, self.options, self.answer]:
+            string += str(attribute)
+            string += "\n"
+        return string
 
 
 class InputFeatures(object):
@@ -82,7 +90,7 @@ def read_race_examples(input_data):
                 options=options,
                 answer=answer)
             examples.append(example)
-
+            
     return examples
 
 
@@ -437,10 +445,12 @@ def main():
         output_config_file = os.path.join(output_dir, CONFIG_NAME)
 
     tokenizer = BertTokenizer.from_pretrained(args.model_dir, do_lower_case=args.do_lower_case)
+    
+    load_data_fn = dataset_selector(args.race_dir)
 
     # Load and preprocess data
     if args.do_train:
-        train_examples, train_features = load_data(
+        train_examples, train_features = load_data_fn(
             args.race_dir, tokenizer, args.max_doc_len, args.max_query_len, args.max_option_len, is_training=True)
         train_examples = train_examples['train']['high'] + train_examples['train']['middle']
         train_features = train_features['train']['high'] + train_features['train']['middle']
@@ -449,7 +459,7 @@ def main():
             len(train_examples) / args.train_batch_size / args.gradient_accumulation_steps) * args.num_train_epochs
 
     if args.do_eval:
-        eval_examples, eval_features = load_data(
+        eval_examples, eval_features = load_data_fn(
             args.race_dir, tokenizer, args.max_doc_len, args.max_query_len, args.max_option_len, is_training=False)
 
     # Prepare model

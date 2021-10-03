@@ -675,8 +675,9 @@ def main():
 
 
 if __name__ == "__main__":
-    #main()
-
+    main()
+    """
     tokenizer = BertTokenizer.from_pretrained("bert-base-uncased", do_lower_case=True)
     load_fn = dataset_selector("dream")
     load_fn(data_dir="dream", tokenizer=tokenizer, max_doc_len=400, max_query_len=30,max_option_len=16, is_training=True)
+    """

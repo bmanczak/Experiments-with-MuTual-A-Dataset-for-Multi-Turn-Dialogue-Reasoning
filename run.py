@@ -254,12 +254,59 @@ def mutual_data_loader(data_dir, tokenizer, max_doc_len, max_query_len, max_opti
 
     return examples, features
 
+def dream_data_loader(data_dir, tokenizer, max_doc_len, max_query_len, max_option_len, is_training):
+    if is_training:
+        subset_list = ['train']
+    else:
+        subset_list = ['dev', 'test']
+    ix_to_answer = ["A", "B", "C", "D"]
+
+    examples, features = {}, {}
+    for subset in subset_list:
+        level_example_dict = {"high": None, "middle": None}
+        level_features_dict = {"high": None, "middle": None}
+
+        for level in ['high', 'middle']:
+            examples_list = []
+            f_name = subset + ".json"
+            file_path = os.path.join(data_dir, f_name)
+            with open(file_path, 'r') as json_in:
+                alldata = json.load(json_in)
+            
+            for i, data in enumerate(alldata):
+                for j in range(len(data[1])):
+                    doc_id = subset + "_" + str(i) + "_" + str(j)
+                    options = data[1][j]["choice"]
+                    answer = data[1][j]["answer"]
+                    answer = ix_to_answer[options.index(answer)] # Convert ix to letter
+                    question = data[1][j]["question"]
+                    doc_token = " ".join(data[0]).replace('\\n', '\n')
+                    doc_token = doc_token.split()
+                    
+                    example = InputExample(
+                        guid=doc_id,
+                        doc_token=doc_token,
+                        question_text=question,
+                        options=options,
+                        answer=answer)
+                    examples_list.append(example)
+
+            level_example_dict[level] = examples_list
+            level_features_dict[level] = convert_examples_to_features(
+                level_example_dict[level], tokenizer, max_doc_len, max_query_len, max_option_len)
+
+        examples[subset] = level_example_dict
+        features[subset] = level_features_dict
+    
+    return examples, features
 
 def dataset_selector(data_dir):
     if data_dir == "RACE":
         return load_data
     elif data_dir == "mutual":
         return mutual_data_loader
+    elif data_dir == "dream":
+        return dream_data_loader
     else:
         print("dataset not implemeted.")
         raise NotImplementedError 
@@ -628,5 +675,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    #main()
 
+    tokenizer = BertTokenizer.from_pretrained("bert-base-uncased", do_lower_case=True)
+    load_fn = dataset_selector("dream")
+    load_fn(data_dir="dream", tokenizer=tokenizer, max_doc_len=400, max_query_len=30,max_option_len=16, is_training=True)

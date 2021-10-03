@@ -31,6 +31,14 @@ logger = logging.getLogger(__name__)
 
 
 class InputExample(object):
+    def __str__(self):
+        return f"""
+        self.guid = {self.guid}
+        self.doc_token = {self.doc_token}
+        self.question_text = {self.question_text}
+        self.options = {self.options}
+        self.answer = {self.answer}
+        """
 
     def __init__(self, guid, doc_token, question_text, options, answer=None):
         self.guid = guid
@@ -184,6 +192,7 @@ def load_data(data_dir, tokenizer, max_doc_len, max_query_len, max_option_len, i
                 alldata.append(data)
 
             level_example_dict[level] = read_race_examples(alldata)
+            print(level_example_dict[level][-3])
             level_features_dict[level] = convert_examples_to_features(
                 level_example_dict[level], tokenizer, max_doc_len, max_query_len, max_option_len)
 
@@ -246,9 +255,10 @@ def mutual_data_loader(data_dir, tokenizer, max_doc_len, max_query_len, max_opti
                     examples_list.append(example)
 
             level_example_dict[level] = examples_list
+            print(examples_list[-3])
             level_features_dict[level] = convert_examples_to_features(
                 level_example_dict[level], tokenizer, max_doc_len, max_query_len, max_option_len)
-
+        
         examples[subset] = level_example_dict
         features[subset] = level_features_dict
 
@@ -275,7 +285,7 @@ def dream_data_loader(data_dir, tokenizer, max_doc_len, max_query_len, max_optio
             
             for i, data in enumerate(alldata):
                 for j in range(len(data[1])):
-                    doc_id = subset + "_" + str(i) + "_" + str(j)
+                    doc_id = subset + "_" + str(i) + "-" + str(j)
                     options = data[1][j]["choice"]
                     answer = data[1][j]["answer"]
                     answer = ix_to_answer[options.index(answer)] # Convert ix to letter
@@ -291,6 +301,7 @@ def dream_data_loader(data_dir, tokenizer, max_doc_len, max_query_len, max_optio
                         answer=answer)
                     examples_list.append(example)
 
+            print(examples_list[-3])
             level_example_dict[level] = examples_list
             level_features_dict[level] = convert_examples_to_features(
                 level_example_dict[level], tokenizer, max_doc_len, max_query_len, max_option_len)
@@ -574,7 +585,7 @@ def main():
 
     # Prepare model
     model = OCN.from_pretrained(args.model_dir,
-                num_labels=4,
+                num_labels=43
                 max_doc_len=args.max_doc_len,
                 max_query_len=args.max_query_len,
                 max_option_len=args.max_option_len)
@@ -676,8 +687,19 @@ def main():
 
 if __name__ == "__main__":
     main()
-    """
-    tokenizer = BertTokenizer.from_pretrained("bert-base-uncased", do_lower_case=True)
-    load_fn = dataset_selector("dream")
-    load_fn(data_dir="dream", tokenizer=tokenizer, max_doc_len=400, max_query_len=30,max_option_len=16, is_training=True)
-    """
+    tokenizer = None
+    try:
+        #tokenizer = BertTokenizer.from_pretrained("bert-base-uncased", do_lower_case=True)
+        load_fn = dataset_selector("dream")
+        load_fn(data_dir="dream", tokenizer=tokenizer, max_doc_len=400, max_query_len=30,max_option_len=16, is_training=True)
+
+    except AttributeError:
+        try:
+            #tokenizer = BertTokenizer.from_pretrained("bert-base-uncased", do_lower_case=True)
+            load_fn = dataset_selector("mutual")
+            load_fn(data_dir="mutual", tokenizer=tokenizer, max_doc_len=400, max_query_len=30,max_option_len=16, is_training=True)
+
+        except AttributeError:
+            load_fn = dataset_selector("RACE")
+            load_fn(data_dir="RACE", tokenizer=tokenizer, max_doc_len=400, max_query_len=30,max_option_len=16, is_training=True)
+    

@@ -585,7 +585,7 @@ def main():
 
     # Prepare model
     model = OCN.from_pretrained(args.model_dir,
-                num_labels=43
+                num_labels=3,
                 max_doc_len=args.max_doc_len,
                 max_query_len=args.max_query_len,
                 max_option_len=args.max_option_len)

@@ -22,8 +22,8 @@ from pytorch_pretrained_bert.optimization import BertAdam
 
 from model import OCN
 
-#os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-#os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+# os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 NUM_LABELS=4
 
 logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s', 
@@ -390,7 +390,7 @@ def evaluation(model, features, batch_size, device, local_rank):
         for i, example_idx in enumerate(example_indexes):
             cur_feature = features[example_idx.item()]
             guid = cur_feature.guid
-            prediction[guid] = logits[i, :]
+            prediction[guid] = int(np.argmax(logits[i, :]))
 
     eval_loss = eval_loss / nb_eval_steps
     eval_accuracy = eval_accuracy / nb_eval_examples

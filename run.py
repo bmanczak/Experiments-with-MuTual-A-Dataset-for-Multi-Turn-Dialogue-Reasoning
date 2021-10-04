@@ -22,7 +22,9 @@ from pytorch_pretrained_bert.optimization import BertAdam
 
 from model import OCN
 
-NUM_LABELS=3
+#os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+#os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+NUM_LABELS=4
 
 logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s', 
                     datefmt = '%m/%d/%Y %H:%M:%S',
@@ -258,6 +260,8 @@ def mutual_data_loader(data_dir, tokenizer, max_doc_len, max_query_len, max_opti
                         prev_is_whitespace = False
 
                 for i, answer in enumerate(data["answers"]):
+                    if answer == " ":
+                        answer = "C"
                     example = InputExample(
                         guid=doc_id + '-%d' % i,
                         doc_token=doc_token,
@@ -329,10 +333,13 @@ def dream_data_loader(data_dir, tokenizer, max_doc_len, max_query_len, max_optio
 
 def dataset_selector(data_dir):
     if data_dir == "RACE":
+        NUM_LABELS = 4
         return load_data
     elif data_dir == "mutual":
+        NUM_LABELS = 4
         return mutual_data_loader
     elif data_dir == "dream":
+        NUM_LABELS = 3
         return dream_data_loader
     else:
         print("dataset not implemeted.")
@@ -417,6 +424,38 @@ def evaluation_on_RACE(model, examples, features, batch_size, device, local_rank
 
     return eval_acc
 
+def evaluation_on_mutual(model, examples, features, batch_size, device, local_rank):
+    eval_acc = {'dev': dict(), 'test': dict()}
+    eval_pred = {'dev': dict(), 'test': dict()}
+    example_num = {'dev': dict(), 'test': dict()}
+    results = {}
+    for subset in ['dev', 'test']:
+        results[subset] = {}
+        for level in ["high", "middle"]:
+            eval_features = features[subset][level]
+            example_num[subset][level] = len(eval_features)
+
+            logger.info("***** Running evaluation on %s level %s set*****" % (level, subset))
+            logger.info("  Num examples = %d", len(eval_features))
+            logger.info("  Batch size = %d", batch_size)
+
+            _, cur_subset_acc, predictions = evaluation(model, eval_features, batch_size, device, local_rank)
+            results[subset][level] = predictions
+            eval_acc[subset][level] = cur_subset_acc
+
+    eval_acc['dev']['all'] = float((eval_acc['dev']['high'] * example_num['dev']['high'] \
+            + eval_acc['dev']['middle'] * example_num['dev']['middle'])) \
+            / (example_num['dev']['high'] + example_num['dev']['middle'])
+
+    eval_acc['test']['all'] = float((eval_acc['test']['high'] * example_num['test']['high'] \
+            + eval_acc['test']['middle'] * example_num['test']['middle'])) \
+            / (example_num['test']['high'] + example_num['test']['middle'])
+
+    with open("results_mutual.json", "w") as f_out:
+        json.dump(results, f_out)
+
+    return eval_acc
+
 def evaluation_on_dream(model, examples, features, batch_size, device, local_rank):
     eval_acc = {'dev': dict(), 'test': dict()}
     eval_pred = {'dev': dict(), 'test': dict()}
@@ -453,6 +492,9 @@ def evaluation_on_dream(model, examples, features, batch_size, device, local_ran
 def load_evaluation_fn(data_dir):
     if data_dir == "RACE":
         return evaluation_on_RACE
+    
+    elif data_dir == "mutual":
+        return evaluation_on_mutual
 
     elif data_dir == "dream":
         return evaluation_on_dream
@@ -500,7 +542,7 @@ def parse_args():
                         type=str,
                         help="The directory of the initial model checkpoint")
     parser.add_argument("--do_lower_case",
-                        default=False,
+                        default=True,
                         action='store_true',
                         help="Whether to lower case the input text. True for uncased models, False for cased models.")
     parser.add_argument("--max_doc_len",

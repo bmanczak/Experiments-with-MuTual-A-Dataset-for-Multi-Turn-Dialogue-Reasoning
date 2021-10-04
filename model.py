@@ -87,25 +87,25 @@ class OCN(BertPreTrainedModel):
 
     def __init__(self, config, num_labels, max_doc_len, max_query_len, max_option_len):
         super(OCN, self).__init__(config)
+        self.num_labels = num_labels
         self.bert = BertModel(config)
-
         self.attn_sim = TriLinear(config.hidden_size)
         self.attention = Attention(sim=self.attn_sim)
-        self.attn_fc = nn.Linear(config.hidden_size * 3, config.hidden_size, bias=True)
+        self.attn_fc = nn.Linear(config.hidden_size * (self.num_labels), config.hidden_size, bias=True)
 
         self.opt_attn_sim = TriLinear(config.hidden_size)
         self.opt_attention = Attention(sim=self.opt_attn_sim)
-        self.comp_fc = nn.Linear(config.hidden_size * 7, config.hidden_size, bias=True)
+        self.comp_fc = nn.Linear(config.hidden_size * ((self.num_labels - 1) * 2 + 1), config.hidden_size, bias=True)
 
         self.query_attentive_pooling = AttentivePooling(input_size=config.hidden_size)
-        self.gate_fc = nn.Linear(config.hidden_size * 3, config.hidden_size, bias=True)
+        self.gate_fc = nn.Linear(config.hidden_size * (self.num_labels), config.hidden_size, bias=True)
 
         self.opt_selfattn_sim = TriLinear(config.hidden_size)
         self.opt_self_attention = Attention(sim=self.opt_selfattn_sim)
         self.opt_selfattn_fc = nn.Linear(config.hidden_size * 4, config.hidden_size, bias=True)
 
         self.score_fc = nn.Linear(config.hidden_size, 1)
-        self.num_labels = num_labels
+
         self.hidden_size = config.hidden_size
 
         self.max_doc_len = max_doc_len
@@ -140,7 +140,7 @@ class OCN(BertPreTrainedModel):
 
         opt_mask = opt_mask.view(bsz, self.num_labels, opt_total_len)
         opt_enc = opt_enc.view(bsz, self.num_labels, opt_total_len, self.hidden_size)
-
+        
         # Option Comparison
         correlation_list = []
         for i in range(self.num_labels):
@@ -159,6 +159,7 @@ class OCN(BertPreTrainedModel):
                 comp_info.append(cur_opt * attn)
                 comp_info.append(cur_opt - attn)
 
+            result = torch.cat([cur_opt] + comp_info, dim=-1)
             correlation = torch.tanh(self.comp_fc(torch.cat([cur_opt] + comp_info, dim=-1)))
             correlation_list.append(correlation)
 

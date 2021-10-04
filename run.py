@@ -1,5 +1,4 @@
 # coding=utf-8
-
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -23,6 +22,7 @@ from pytorch_pretrained_bert.optimization import BertAdam
 
 from model import OCN
 
+NUM_LABELS=3
 
 logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s', 
                     datefmt = '%m/%d/%Y %H:%M:%S',
@@ -31,6 +31,14 @@ logger = logging.getLogger(__name__)
 
 
 class InputExample(object):
+    def __str__(self):
+        return f"""
+        self.guid = {self.guid}
+        self.doc_token = {self.doc_token}
+        self.question_text = {self.question_text}
+        self.options = {self.options}
+        self.answer = {self.answer}
+        """
 
     def __init__(self, guid, doc_token, question_text, options, answer=None):
         self.guid = guid
@@ -41,7 +49,16 @@ class InputExample(object):
 
 
 class InputFeatures(object):
-
+    def __str__(self):
+        return f"""
+        self.input_ids = {len(self.input_ids)}
+        self.input_mask = {len(self.input_mask)}
+        self.segment_ids = {len(self.segment_ids)}
+        self.label_id = {self.label_id}
+        self.query_len = {self.query_len}
+        self.opt_len = {self.opt_len}
+        self.guid = {self.guid}
+        """
     def __init__(self, input_ids, input_mask, segment_ids, label_id, query_len, opt_len, guid):
         self.input_ids = input_ids
         self.input_mask = input_mask
@@ -87,7 +104,7 @@ def read_race_examples(input_data):
 
 
 def convert_examples_to_features(examples, tokenizer, max_doc_len, max_query_len, max_option_len):
-    max_seq_len = max_doc_len + max_query_len + max_option_len + 4
+    max_seq_len = max_doc_len + max_query_len + max_option_len + NUM_LABELS
 
     label_list = ["A", "B", "C", "D"]
     label_map = {}
@@ -184,9 +201,13 @@ def load_data(data_dir, tokenizer, max_doc_len, max_query_len, max_option_len, i
                 alldata.append(data)
 
             level_example_dict[level] = read_race_examples(alldata)
+            print(level_example_dict[level][-3])
             level_features_dict[level] = convert_examples_to_features(
                 level_example_dict[level], tokenizer, max_doc_len, max_query_len, max_option_len)
 
+        print("RACE Data Loader....")
+        print(level_example_dict[level][-1])
+        print(level_features_dict[level][-1])
         examples[subset] = level_example_dict
         features[subset] = level_features_dict
 
@@ -248,18 +269,71 @@ def mutual_data_loader(data_dir, tokenizer, max_doc_len, max_query_len, max_opti
             level_example_dict[level] = examples_list
             level_features_dict[level] = convert_examples_to_features(
                 level_example_dict[level], tokenizer, max_doc_len, max_query_len, max_option_len)
-
+        
+        print("MuTuaL Data Loader....")
+        print(level_example_dict[level][-1])
+        print(level_features_dict[level][-1])
         examples[subset] = level_example_dict
         features[subset] = level_features_dict
 
     return examples, features
 
+def dream_data_loader(data_dir, tokenizer, max_doc_len, max_query_len, max_option_len, is_training):
+    if is_training:
+        subset_list = ['train']
+    else:
+        subset_list = ['dev', 'test']
+    ix_to_answer = ["A", "B", "C", "D"]
+
+    examples, features = {}, {}
+    for subset in subset_list:
+        level_example_dict = {"high": None, "middle": None}
+        level_features_dict = {"high": None, "middle": None}
+
+        for level in ['high', 'middle']:
+            examples_list = []
+            f_name = subset + ".json"
+            file_path = os.path.join(data_dir, f_name)
+            with open(file_path, 'r') as json_in:
+                alldata = json.load(json_in)
+            
+            for i, data in enumerate(alldata):
+                for j in range(len(data[1])):
+                    doc_id = data[-1] + "-" + str(j)
+                    options = data[1][j]["choice"]
+                    answer = data[1][j]["answer"]
+                    answer = ix_to_answer[options.index(answer)] # Convert ix to letter
+                    question = data[1][j]["question"]
+                    doc_token = " ".join(data[0]).replace('\\n', '\n')
+                    doc_token = doc_token.split()
+                    
+                    example = InputExample(
+                        guid=doc_id,
+                        doc_token=doc_token,
+                        question_text=question,
+                        options=options,
+                        answer=answer)
+                    examples_list.append(example)
+
+            level_example_dict[level] = examples_list
+            level_features_dict[level] = convert_examples_to_features(
+                level_example_dict[level], tokenizer, max_doc_len, max_query_len, max_option_len)
+
+        print("Dream Data Loader....")
+        print(level_example_dict[level][-1])
+        print(level_features_dict[level][-1])
+        examples[subset] = level_example_dict
+        features[subset] = level_features_dict
+    
+    return examples, features
 
 def dataset_selector(data_dir):
     if data_dir == "RACE":
         return load_data
     elif data_dir == "mutual":
         return mutual_data_loader
+    elif data_dir == "dream":
+        return dream_data_loader
     else:
         print("dataset not implemeted.")
         raise NotImplementedError 
@@ -309,15 +383,14 @@ def evaluation(model, features, batch_size, device, local_rank):
         for i, example_idx in enumerate(example_indexes):
             cur_feature = features[example_idx.item()]
             guid = cur_feature.guid
-            prediction[guid] = int(np.argmax(logits[i, :]))
+            prediction[guid] = logits[i, :]
 
     eval_loss = eval_loss / nb_eval_steps
     eval_accuracy = eval_accuracy / nb_eval_examples
 
     return eval_loss, eval_accuracy, prediction
 
-
-def evaluation_on_RACE(model, features, batch_size, device, local_rank):
+def evaluation_on_RACE(model, examples, features, batch_size, device, local_rank):
     eval_acc = {'dev': dict(), 'test': dict()}
     eval_pred = {'dev': dict(), 'test': dict()}
     example_num = {'dev': dict(), 'test': dict()}
@@ -344,6 +417,47 @@ def evaluation_on_RACE(model, features, batch_size, device, local_rank):
 
     return eval_acc
 
+def evaluation_on_dream(model, examples, features, batch_size, device, local_rank):
+    eval_acc = {'dev': dict(), 'test': dict()}
+    eval_pred = {'dev': dict(), 'test': dict()}
+    example_num = {'dev': dict(), 'test': dict()}
+    results = {}
+    for subset in ['dev', 'test']:
+        results[subset] = {}
+        for level in ["high", "middle"]:
+            eval_features = features[subset][level]
+            example_num[subset][level] = len(eval_features)
+
+            logger.info("***** Running evaluation on %s level %s set*****" % (level, subset))
+            logger.info("  Num examples = %d", len(eval_features))
+            logger.info("  Batch size = %d", batch_size)
+
+            _, cur_subset_acc, predictions = evaluation(model, eval_features, batch_size, device, local_rank)
+            results[subset][level] = predictions
+            eval_acc[subset][level] = cur_subset_acc
+
+    eval_acc['dev']['all'] = float((eval_acc['dev']['high'] * example_num['dev']['high'] \
+            + eval_acc['dev']['middle'] * example_num['dev']['middle'])) \
+            / (example_num['dev']['high'] + example_num['dev']['middle'])
+
+    eval_acc['test']['all'] = float((eval_acc['test']['high'] * example_num['test']['high'] \
+            + eval_acc['test']['middle'] * example_num['test']['middle'])) \
+            / (example_num['test']['high'] + example_num['test']['middle'])
+
+    with open("results_dream.json", "w") as f_out:
+        json.dump(results, f_out)
+
+    return eval_acc
+
+
+def load_evaluation_fn(data_dir):
+    if data_dir == "RACE":
+        return evaluation_on_RACE
+
+    elif data_dir == "dream":
+        return evaluation_on_dream
+
+    else: raise NotImplementedError
 
 def make_metric_log(eval_acc, epoch=None, batch=None, global_step=None):
     metrics = {
@@ -522,12 +636,13 @@ def main():
             len(train_examples) / args.train_batch_size / args.gradient_accumulation_steps) * args.num_train_epochs
 
     if args.do_eval:
+        evaluation_fn = load_evaluation_fn(args.race_dir)
         eval_examples, eval_features = load_data_fn(
             args.race_dir, tokenizer, args.max_doc_len, args.max_query_len, args.max_option_len, is_training=False)
 
     # Prepare model
     model = OCN.from_pretrained(args.model_dir,
-                num_labels=4,
+                num_labels=NUM_LABELS,
                 max_doc_len=args.max_doc_len,
                 max_query_len=args.max_query_len,
                 max_option_len=args.max_option_len)
@@ -596,7 +711,7 @@ def main():
 
                     if args.do_eval and global_step % args.eval_period == 0:
                         model.eval()
-                        eval_acc = evaluation_on_RACE(model, eval_features, args.eval_batch_size, device, args.local_rank)
+                        eval_acc = evaluation_fn(model, eval_examples, eval_features, args.eval_batch_size, device, args.local_rank)
                         metric_log = make_metric_log(eval_acc, epoch, step + 1, global_step)
                         logger.info(metric_log)
 
@@ -612,7 +727,7 @@ def main():
 
     if args.do_eval:
         model.eval()
-        eval_acc = evaluation_on_RACE(model, eval_features, args.eval_batch_size, device, args.local_rank)
+        eval_acc = evaluation_fn(model, eval_examples, eval_features, args.eval_batch_size, device, args.local_rank)
         if args.do_train:
             metric_log = make_metric_log(eval_acc, epoch, step + 1, global_step)
             logger.info(metric_log)
@@ -629,4 +744,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

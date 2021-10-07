@@ -85,32 +85,35 @@ class Attention(nn.Module):
 
 class OCN(BertPreTrainedModel):
 
-    def __init__(self, config, num_labels, max_doc_len, max_query_len, max_option_len):
+    def __init__(self, config, num_labels, max_doc_len, max_query_len, max_option_len, skip_ocn=False):
         super(OCN, self).__init__(config)
+        self.num_labels = num_labels
         self.bert = BertModel(config)
 
         self.attn_sim = TriLinear(config.hidden_size)
         self.attention = Attention(sim=self.attn_sim)
-        self.attn_fc = nn.Linear(config.hidden_size * 3, config.hidden_size, bias=True)
+        self.attn_fc = nn.Linear(config.hidden_size * (self.num_labels), config.hidden_size, bias=True)
 
         self.opt_attn_sim = TriLinear(config.hidden_size)
         self.opt_attention = Attention(sim=self.opt_attn_sim)
-        self.comp_fc = nn.Linear(config.hidden_size * 7, config.hidden_size, bias=True)
+        self.comp_fc = nn.Linear(config.hidden_size * ((self.num_labels - 1) * 2 + 1), config.hidden_size, bias=True)
 
         self.query_attentive_pooling = AttentivePooling(input_size=config.hidden_size)
-        self.gate_fc = nn.Linear(config.hidden_size * 3, config.hidden_size, bias=True)
+        self.gate_fc = nn.Linear(config.hidden_size * (self.num_labels), config.hidden_size, bias=True)
 
         self.opt_selfattn_sim = TriLinear(config.hidden_size)
         self.opt_self_attention = Attention(sim=self.opt_selfattn_sim)
         self.opt_selfattn_fc = nn.Linear(config.hidden_size * 4, config.hidden_size, bias=True)
 
         self.score_fc = nn.Linear(config.hidden_size, 1)
-        self.num_labels = num_labels
+
         self.hidden_size = config.hidden_size
 
         self.max_doc_len = max_doc_len
         self.max_query_len = max_query_len
         self.max_option_len = max_option_len
+        
+        self.skip_ocn = skip_ocn
 
         self.apply(self.init_bert_weights)
 
@@ -140,40 +143,49 @@ class OCN(BertPreTrainedModel):
 
         opt_mask = opt_mask.view(bsz, self.num_labels, opt_total_len)
         opt_enc = opt_enc.view(bsz, self.num_labels, opt_total_len, self.hidden_size)
-
+        
         # Option Comparison
-        correlation_list = []
-        for i in range(self.num_labels):
-            cur_opt = opt_enc[:, i, :, :]
-            cur_mask = opt_mask[:, i, :]
+        if not self.skip_ocn:
+            correlation_list = []
+            for i in range(self.num_labels):
+                cur_opt = opt_enc[:, i, :, :]
+                cur_mask = opt_mask[:, i, :]
 
-            comp_info = []
-            for j in range(self.num_labels):
-                if j == i:
-                    continue
+                comp_info = []
+                for j in range(self.num_labels):
+                    if j == i:
+                        continue
 
-                tmp_opt = opt_enc[:, j, :, :]
-                tmp_mask = opt_mask[:, j, :]
+                    tmp_opt = opt_enc[:, j, :, :]
+                    tmp_mask = opt_mask[:, j, :]
 
-                (attn, _), _ = self.opt_attention(cur_opt, tmp_opt, tmp_opt, cur_mask, tmp_mask)
-                comp_info.append(cur_opt * attn)
-                comp_info.append(cur_opt - attn)
+                    (attn, _), _ = self.opt_attention(cur_opt, tmp_opt, tmp_opt, cur_mask, tmp_mask)
+                    comp_info.append(cur_opt * attn)
+                    comp_info.append(cur_opt - attn)
 
-            correlation = torch.tanh(self.comp_fc(torch.cat([cur_opt] + comp_info, dim=-1)))
-            correlation_list.append(correlation)
+                result = torch.cat([cur_opt] + comp_info, dim=-1)
+                correlation = torch.tanh(self.comp_fc(torch.cat([cur_opt] + comp_info, dim=-1)))
+                correlation_list.append(correlation)
 
-        correlation_list = [correlation.unsqueeze(1) for correlation in correlation_list]
-        opt_correlation = torch.cat(correlation_list, dim=1)
+            correlation_list = [correlation.unsqueeze(1) for correlation in correlation_list]
+            opt_correlation = torch.cat(correlation_list, dim=1)
 
         opt_mask = opt_mask.view(bsz * self.num_labels, opt_total_len)
         opt_enc = opt_enc.view(bsz * self.num_labels, opt_total_len, self.hidden_size)
-        opt_correlation = opt_correlation.contiguous().view(bsz * self.num_labels, opt_total_len, self.hidden_size)
-        gate = torch.sigmoid(self.gate_fc(torch.cat((opt_enc, opt_correlation, query_attn.expand_as(opt_enc)), -1)))
-        option = opt_enc * gate + opt_correlation * (1.0 - gate)
+        
+        if not self.skip_ocn:
+            opt_correlation = opt_correlation.contiguous().view(bsz * self.num_labels, opt_total_len, self.hidden_size)
+            gate = torch.sigmoid(self.gate_fc(torch.cat((opt_enc, opt_correlation, query_attn.expand_as(opt_enc)), -1)))
+            option = opt_enc * gate + opt_correlation * (1.0 - gate)
 
-        (attn, _), (coattn, _) = self.attention(option, doc_enc, doc_enc, opt_mask, doc_mask)
-        fusion = self.attn_fc(torch.cat((option, attn, coattn), -1))
-        fusion = F.relu(fusion)
+        if not self.skip_ocn:
+            (attn, _), (coattn, _) = self.attention(option, doc_enc, doc_enc, opt_mask, doc_mask) # eq 13,14 original
+            fusion = self.attn_fc(torch.cat((option, attn, coattn), -1)) # eq 15 original
+        else:
+            (attn, _), (coattn, _) = self.attention(opt_enc, doc_enc, doc_enc, opt_mask, doc_mask) # eq 13,14 experiment
+            fusion = self.attn_fc(torch.cat((opt_enc, attn, coattn), -1)) # eq 15 experiment
+        
+        fusion = F.relu(fusion) # eq 16
 
         (attn, _), _ = self.opt_self_attention(fusion, fusion, fusion, opt_mask, opt_mask)
         fusion = self.opt_selfattn_fc(torch.cat((fusion, attn, fusion * attn, fusion - attn), -1))

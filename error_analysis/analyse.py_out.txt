@@ -1,0 +1,75 @@
+﻿Printing scores for ['results_dream_no_ocn.json', 'results_dream_ocn.json']
+106 were false before, now true; 103 were correct before, now false (type 1)
+Format: ALL_EXCEPT_CORRECT_ONLY_SET2 / CORRECT_ONLY_SET2
+Num samples: 1287
+TF-IDF score (avg): 5.2800 / 5.3877
+matching_token_fraction (avg): 0.6478 / 0.6178
+context_number_count (avg): 0.5936 / 0.7925
+context_length (avg): 365.4708 / 388.4906
+average_sentence_context_length (avg): 75.6364 / 80.5923
+
+Printing scores for ['results_mutual_no_ocn_frozen_bert.json', 'results_mutual_ocn_frozen_bert.json']
+248 were false before, now true; 146 were correct before, now false (type 1)
+Format: ALL_EXCEPT_CORRECT_ONLY_SET2 / CORRECT_ONLY_SET2
+Num samples: 1772
+TF-IDF score (avg): 5.7064 / 5.5581
+matching_token_fraction (avg): 0.6405 / 0.6382
+context_number_count (avg): 0.9606 / 1.2097
+context_length (avg): 377.3543 / 357.1774
+average_sentence_context_length (avg): 77.9180 / 77.1595
+
+Printing scores for ['results_dream_no_ocn.json', 'results_dream_ocn.json']
+106 were false before, now true; 103 were correct before, now false
+Format: INCORRECT_BEFORE_EXCEPT_CORRECT_NOW / CORRECT_ONLY_SET2 (type 2)
+Num samples: 1287
+TF-IDF score (avg): 5.3555 / 5.4363
+matching_token_fraction (avg): 0.6033 / 0.6178
+context_number_count (avg): 0.7434 / 0.7925
+context_length (avg): 368.8254 / 388.4906
+average_sentence_context_length (avg): 81.9329 / 80.5923
+
+Printing scores for ['results_mutual_no_ocn_frozen_bert.json', 'results_mutual_ocn_frozen_bert.json']
+248 were false before, now true; 146 were correct before, now false
+Format: INCORRECT_BEFORE_EXCEPT_CORRECT_NOW / CORRECT_ONLY_SET2 (type 2)
+Num samples: 1772
+TF-IDF score (avg): 5.8039 / 5.5814
+matching_token_fraction (avg): 0.6357 / 0.6382
+context_number_count (avg): 1.0000 / 1.2097
+context_length (avg): 390.8984 / 357.1774
+average_sentence_context_length (avg): 80.5759 / 77.1595
+
+Printing scores for ['results_dream_no_ocn.json']
+Format: INCORRECTLY_CLASSIFIED / CORRECTLY_CLASSIFIED
+Num samples: 1287
+TF-IDF score (avg): 5.3334 / 5.2620
+matching_token_fraction (avg): 0.6065 / 0.6687
+context_number_count (avg): 0.7541 / 0.5230
+context_length (avg): 373.1322 / 363.8917
+average_sentence_context_length (avg): 81.6393 / 72.6724
+
+Printing scores for ['results_dream_ocn.json']
+Format: INCORRECTLY_CLASSIFIED / CORRECTLY_CLASSIFIED
+Num samples: 1287
+TF-IDF score (avg): 5.3538 / 5.2501
+matching_token_fraction (avg): 0.6038 / 0.6701
+context_number_count (avg): 0.7131 / 0.5484
+context_length (avg): 368.0748 / 366.9442
+average_sentence_context_length (avg): 81.4123 / 72.8412
+
+Printing scores for ['results_mutual_no_ocn_frozen_bert.json']
+Format: INCORRECTLY_CLASSIFIED / CORRECTLY_CLASSIFIED
+Num samples: 1772
+TF-IDF score (avg): 5.7089 / 5.6682
+matching_token_fraction (avg): 0.6365 / 0.6429
+context_number_count (avg): 1.0684 / 0.9407
+context_length (avg): 379.8947 / 370.5020
+average_sentence_context_length (avg): 79.4611 / 76.5732
+
+Printing scores for ['results_mutual_ocn_frozen_bert.json']
+Format: INCORRECTLY_CLASSIFIED / CORRECTLY_CLASSIFIED
+Num samples: 1772
+TF-IDF score (avg): 5.7118 / 5.6702
+matching_token_fraction (avg): 0.6342 / 0.6436
+context_number_count (avg): 1.0091 / 0.9874
+context_length (avg): 380.3313 / 371.1041
+average_sentence_context_length (avg): 79.6898 / 76.7026

@@ -13,7 +13,7 @@ class MuTualSampleSet():
     MuTualSample().
     """
     
-    def __init__(self, samples = [], correct_false = None):
+    def __init__(self, samples = [], correct_false = None, is_prediction = False):
         """
         Initializes a list of held samples.
         
@@ -23,6 +23,9 @@ class MuTualSampleSet():
                          list will be used to initialize the datastructure.
         @correct_false - An optional list containing boolean entries
                          corresponding to entries in @samples.
+        @is_prediction - If True, @correct_false is not a list of booleans, but
+                         a list of prediction indices (that will be converted
+                         to booleans).
                    
         Output: void
         """
@@ -34,9 +37,76 @@ class MuTualSampleSet():
                 raise ValueError("(Parsing error) Sample and correct/false \
                                                         counts do not add up")
             
-            self.correct_false = correct_false
+            if is_prediction:
+                correct_false_converted = []
+                
+                for i, sample in enumerate(samples):
+                    if sample.answer == correct_false[i]:
+                        correct_false_converted.append(True)
+                    else:
+                        correct_false_converted.append(False)
+                
+                self.correct_false = correct_false_converted
+            else:
+                self.correct_false = correct_false
         else:
             self.correct_false = None
+        
+    def adjust_split(self, sampleset, type=1):
+        """
+        Changes correct_false by setting as correct only the samples that
+        were correctly classified only in a given second sampleset (in
+        contrast to current sample set).
+        
+        Input:
+        
+        @sampleset - A MuTualSampleSet() object
+        @type      - Either:
+                        1 => Compare all samples vs samples that are correct
+                             ONLY in @sampleset
+                        2 => Compare false samples in current sampleset except
+                             those that are correct in @sampleset versus these
+                             samples that are correct in @sampleset.
+        
+        Output: void
+        """
+        
+        #self.correct_false = sampleset.correct_false - self.correct_false
+        
+        false_before_now_correct = 0
+        correct_before_now_false = 0
+        
+        delete_from_sampleset = []
+        
+        for i, x in enumerate(self.correct_false):
+            y = sampleset.correct_false[i]
+            
+            if x == y:
+                if type == 1:
+                    self.correct_false[i] = False
+                elif type == 2:
+                    if not x:
+                        self.correct_false[i] = False
+                    else:
+                        delete_from_sampleset.append(i)
+            elif x:
+                correct_before_now_false += 1
+                if type == 1:
+                    self.correct_false[i] = False
+                elif type == 2:
+                    delete_from_sampleset.append(i)
+            else:
+                false_before_now_correct += 1
+                self.correct_false[i] = True
+        
+        if delete_from_sampleset:
+            delete_from_sampleset.reverse()
+            
+            for i in delete_from_sampleset:
+                del self.samples[i]
+                del self.correct_false[i]
+        
+        print('%d were false before, now true; %d were correct before, now false' % (false_before_now_correct, correct_before_now_false))
         
     def add_sample(self, sample, correct_false = None):
         """

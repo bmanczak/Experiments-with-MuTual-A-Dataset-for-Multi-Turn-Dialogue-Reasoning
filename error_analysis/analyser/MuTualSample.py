@@ -27,7 +27,7 @@ class MuTualSample():
             options = [option for option in sample_data['options']]
             answer  = sample_data['answers']
             
-        if not answer.isnumeric():
+        if not isinstance(answer, int):
             answer = ord(answer) - 65
             
         if answer > len(options):

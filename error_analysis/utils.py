@@ -42,7 +42,7 @@ def convert_context_to_sentences(context, strip_annotation = True,
     @sentences - List of separate sentences contained in the context.
     """
 
-    regex_pattern = "(([a-z]) : ((?:.(?![a-z] :))*))"
+    regex_pattern = "(([a-zA-Z][0-9]?) ?: ((?:.(?![a-zA-Z][0-9]? ?:))*))"
 
     matches   = re.findall(regex_pattern, context)
     sentences = []

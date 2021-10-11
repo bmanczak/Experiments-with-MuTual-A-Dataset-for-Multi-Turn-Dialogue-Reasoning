@@ -73,3 +73,27 @@ matching_token_fraction (avg): 0.6342 / 0.6436
 context_number_count (avg): 1.0091 / 0.9874
 context_length (avg): 380.3313 / 371.1041
 average_sentence_context_length (avg): 79.6898 / 76.7026
+
+
+
+
+
+Printing scores for ['results_mutual_no_ocn_frozen_bert.json', 'results_mutual_ocn_frozen_bert.json']
+Results for file results_mutual_no_ocn_frozen_bert.json
+Bin #0 accuracy: 0.580 (342 correct out of 590)
+Bin #1 accuracy: 0.573 (338 correct out of 590)
+Bin #2 accuracy: 0.561 (332 correct out of 592)
+Results for file results_mutual_ocn_frozen_bert.json
+Bin #0 accuracy: 0.624 (368 correct out of 590)
+Bin #1 accuracy: 0.641 (378 correct out of 590)
+Bin #2 accuracy: 0.622 (368 correct out of 592)
+
+Printing scores for ['results_dream_no_ocn.json', 'results_dream_ocn.json']
+Results for file results_dream_no_ocn.json
+Bin #0 accuracy: 0.667 (286 correct out of 429)
+Bin #1 accuracy: 0.580 (249 correct out of 429)
+Bin #2 accuracy: 0.625 (268 correct out of 429)
+Results for file results_dream_ocn.json
+Bin #0 accuracy: 0.681 (292 correct out of 429)
+Bin #1 accuracy: 0.562 (241 correct out of 429)
+Bin #2 accuracy: 0.636 (273 correct out of 429)

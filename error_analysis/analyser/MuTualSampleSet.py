@@ -1,4 +1,5 @@
 from sklearn.feature_extraction.text import TfidfVectorizer
+import numpy as np
 
 class MuTualSampleSet():
     """
@@ -191,14 +192,14 @@ class MuTualSampleSet():
                 
         return results
         
-    def TF_IDF(self, type = 'context', tokenizer = None, stemmer = None):
+    def TF_IDF(self, type_c = 'context', tokenizer = None, stemmer = None):
         """
         Calculates the TF_IDF score for every listed sample, based on the
         whole population of samples.
         
         Input:
         
-        @type      - The type of text to compute TF-IDFs for. Either:
+        @type_c    - The type of text to compute TF-IDFs for. Either:
                        => context
                        => answer
         @tokenizer - An NLTK embodied tokenizer. If not given, then it is
@@ -222,7 +223,7 @@ class MuTualSampleSet():
                                    they occur in the list of samples.
                      [False]    => As above, for False(ly) classified samples.
         """
-        if type not in ['context', 'answer']:
+        if type_c not in ['context', 'answer']:
             raise ValueError("(Parsing error) Wrong type TF-IDF corpus data")
             
         vectorizer = TfidfVectorizer()
@@ -231,9 +232,9 @@ class MuTualSampleSet():
         for sample in self.samples:
             sample.tokenize_stem(tokenizer, stemmer) # only if not done before
             
-            if type == 'context':
+            if type_c == 'context':
                 corpus.append(" ".join(sample.article_tokenized_stemmed))
-            elif type == 'answer':
+            elif type_c == 'answer':
                 corpus.append(" ".join(sample.answer_tokenized_stemmed))
                 
         matrix = vectorizer.fit_transform(corpus)
@@ -245,9 +246,12 @@ class MuTualSampleSet():
             results[False] = []
         
         for i, result in enumerate(matrix.sum(axis=1)):
+            result = result.item(0)
             results['global'].append(result)
             
             if self.correct_false is not None:
                 results[self.correct_false[i]].append(result)
+        
+        results['global'] = np.array(results['global'])
         
         return results

@@ -85,12 +85,12 @@ class Attention(nn.Module):
 
 class OCN(BertPreTrainedModel):
 
-    def __init__(self, config, num_labels, max_doc_len, max_query_len, max_option_len, skip_ocn=True):
+    def __init__(self, config, num_labels, max_doc_len, max_query_len, max_option_len, skip_ocn=False):
         super(OCN, self).__init__(config)
         self.num_labels = num_labels
         self.bert = BertModel(config)
         for param in self.bert.parameters():
-            param.requires_grad = False
+            param.requires_grad = True
 
         self.attn_sim = TriLinear(config.hidden_size)
         self.attention = Attention(sim=self.attn_sim)

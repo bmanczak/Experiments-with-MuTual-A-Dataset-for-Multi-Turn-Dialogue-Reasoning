@@ -85,21 +85,23 @@ class Attention(nn.Module):
 
 class OCN(BertPreTrainedModel):
 
-    def __init__(self, config, num_labels, max_doc_len, max_query_len, max_option_len, skip_ocn=False):
+    def __init__(self, config, num_labels, max_doc_len, max_query_len, max_option_len, skip_ocn=True):
         super(OCN, self).__init__(config)
         self.num_labels = num_labels
         self.bert = BertModel(config)
+        for param in self.bert.parameters():
+            param.requires_grad = False
 
         self.attn_sim = TriLinear(config.hidden_size)
         self.attention = Attention(sim=self.attn_sim)
-        self.attn_fc = nn.Linear(config.hidden_size * (self.num_labels), config.hidden_size, bias=True)
+        self.attn_fc = nn.Linear(config.hidden_size * 3, config.hidden_size, bias=True)
 
         self.opt_attn_sim = TriLinear(config.hidden_size)
         self.opt_attention = Attention(sim=self.opt_attn_sim)
-        self.comp_fc = nn.Linear(config.hidden_size * ((self.num_labels - 1) * 2 + 1), config.hidden_size, bias=True)
+        self.comp_fc = nn.Linear(config.hidden_size * 7, config.hidden_size, bias=True)
 
         self.query_attentive_pooling = AttentivePooling(input_size=config.hidden_size)
-        self.gate_fc = nn.Linear(config.hidden_size * (self.num_labels), config.hidden_size, bias=True)
+        self.gate_fc = nn.Linear(config.hidden_size * 3, config.hidden_size, bias=True)
 
         self.opt_selfattn_sim = TriLinear(config.hidden_size)
         self.opt_self_attention = Attention(sim=self.opt_selfattn_sim)
@@ -175,7 +177,10 @@ class OCN(BertPreTrainedModel):
         
         if not self.skip_ocn:
             opt_correlation = opt_correlation.contiguous().view(bsz * self.num_labels, opt_total_len, self.hidden_size)
-            gate = torch.sigmoid(self.gate_fc(torch.cat((opt_enc, opt_correlation, query_attn.expand_as(opt_enc)), -1)))
+            query_attn = query_attn.expand_as(opt_enc)
+            if torch.isnan(query_attn).any():
+                query_attn[torch.isnan(query_attn)] = 0
+            gate = torch.sigmoid(self.gate_fc(torch.cat((opt_enc, opt_correlation, query_attn), -1)))
             option = opt_enc * gate + opt_correlation * (1.0 - gate)
 
         if not self.skip_ocn:
